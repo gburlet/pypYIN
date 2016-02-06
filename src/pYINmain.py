@@ -276,3 +276,72 @@ class PyinMain(object):
             oldIsVoiced = isVoiced
 
         return self.fs
+
+    def getNoteTrack(self):
+        if len(self.m_pitchProb) == 0:
+            return self.fs
+
+        # pitch smoothing
+        f = Feature()
+        mp = MonoPitch()
+        mpOut = mp.process(self.m_pitchProb)
+        for iFrame in range(len(mpOut)):
+            if mpOut[iFrame] < 0 and self.m_outputUnvoiced == 0:
+                continue
+            f.resetValues()
+            if self.m_outputUnvoiced == 1:
+                f.values = np.append(f.values, np.fabs(mpOut[iFrame]))
+            else:
+                f.values = np.append(f.values, mpOut[iFrame])
+
+            self.fs.m_oSmoothedPitchTrack.append(copy.copy(f))
+
+        # note tracking
+        mn = MonoNote()
+        smoothedPitch = []
+        for iFrame in range(len(mpOut)):
+            temp = []
+            if mpOut[iFrame] > 0:  # negative value: silence
+                tempPitch = 12 * log(mpOut[iFrame]/440.0)/log(2.0) + 69
+                temp += [[tempPitch, 0.9]]
+            smoothedPitch += [temp]
+
+        mnOut = mn.process(smoothedPitch)
+        self.fs.m_oMonoNoteOut = mnOut
+
+        onsetFrame = 0
+        isVoiced = False
+        prevIsVoiced = False
+        nFrame = len(self.m_pitchProb)
+
+        minNoteFrames = (self.m_inputSampleRate*self.m_pruneThresh)/self.m_stepSize
+
+        notes = []
+        potential_note = None
+        for iFrame in range(nFrame):
+            isVoiced = (
+                mnOut[iFrame].noteState < 3 and
+                len(smoothedPitch[iFrame]) > 0 and
+                (iFrame >= nFrame-2 or (self.m_level[iFrame]/self.m_level[iFrame+2] > self.m_onsetSensitivity))
+            )
+
+            if isVoiced and iFrame != nFrame-1:
+                if not prevIsVoiced:
+                    # beginning of the note
+                    potential_note = {
+                        "onset_frame": iFrame,
+                        "onset_time_s": iFrame*self.m_stepSize/float(self.m_inputSampleRate),
+                        "midi_number": int(round(mnOut[iFrame].pitch)),
+                        "length_frames": 1
+                    }
+                potential_note["length_frames"] += 1
+            else: # not currently voiced
+                if prevIsVoiced: # end of the note
+                    if potential_note["length_frames"] >= minNoteFrames:
+                        # should be added to the note track
+                        potential_note["length_s"] = (potential_note["length_frames"]*self.m_stepSize + self.m_blockSize)/float(self.m_inputSampleRate)
+                        notes.append(potential_note)
+                    potential_note = None
+            prevIsVoiced = isVoiced
+
+        return notes

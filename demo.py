@@ -43,63 +43,42 @@ srcpath = dir+'/src'
 sys.path.append(srcpath)
 
 import pYINmain
-import essentia.standard as ess
+import librosa
 import numpy as np
-from YinUtil import RMS
+from midiio import MidiIO
 
 if __name__ == "__main__":
 
     # initialise
-    filename1 = srcpath + '/testAudioLong.wav'
-    fs = 44100
+    filename1 = '/home/gburlet/Music/queen_champions.mp3'
+    sr = 22050
     frameSize = 2048
     hopSize = 256
 
     pYinInst = pYINmain.PyinMain()
-    pYinInst.initialise(channels = 1, inputSampleRate = fs, stepSize = hopSize, blockSize = frameSize,
+    pYinInst.initialise(channels = 1, inputSampleRate = sr, stepSize = hopSize, blockSize = frameSize,
                    lowAmp = 0.25, onsetSensitivity = 0.7, pruneThresh = 0.1)
 
-    # frame-wise calculation
-    audio = ess.MonoLoader(filename = filename1, sampleRate = fs)()
-
-    # rms mean
-    # rms = []
-    # for frame in ess.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize):
-    #     rms.append(RMS(frame, frameSize))
-    # rmsMean = np.mean(rms)
-    # print 'rmsMean', rmsMean
-
-    for frame in ess.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize):
-        fs = pYinInst.process(frame)
+    y, _ = librosa.load(filename1, sr=sr, mono=True, duration=30.0)
+    # np.ndarray [shape=(frame_length, N_FRAMES)]
+    frames = librosa.util.frame(y, frame_length=frameSize, hop_length=hopSize)
+    num_frames = np.shape(frames)[1]
+    for i in xrange(num_frames):
+        pYinInst.process(frames[:,i])
 
     # calculate smoothed pitch and mono note
-    monoPitch = pYinInst.getSmoothedPitchTrack()
+    note_track = pYinInst.getNoteTrack()
 
-    # output smoothed pitch track
-    print 'pitch track'
-    for ii in fs.m_oSmoothedPitchTrack:
-        print ii.values
-    print '\n'
+    # {pitch, onset_s, offset_s},
+    # write midi
+    notes = []
+    for note in note_track:
+        notes.append({
+            "pitch": note["midi_number"],
+            "onset_s": note["onset_time_s"],
+            "offset_s": note["onset_time_s"] + note["length_s"]
+        })
 
-    fs = pYinInst.getRemainingFeatures(monoPitch)
-
-    # output of mono notes,
-    # column 0: frame number,
-    # column 1: pitch in midi numuber, this is the decoded pitch
-    # column 2: attack 1, stable 2, silence 3
-    print 'mono note decoded pitch'
-    for ii in fs.m_oMonoNoteOut:
-        print ii.frameNumber, ii.pitch, ii.noteState
-    print '\n'
-
-    print 'note pitch tracks'
-    for ii in fs.m_oNotePitchTracks:
-        print ii
-    print '\n'
-
-    # median pitch in Hz of the notes
-    print 'median note pitch'
-    for ii in fs.m_oNotes:
-        print ii.values
-    print '\n'
-
+    print notes
+    mio = MidiIO('/home/gburlet/Music/queen_champions.mid')
+    mio.write_midi(notes)
