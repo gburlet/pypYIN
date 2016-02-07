@@ -10,7 +10,10 @@ Pitch and note tracking in monophonic audio
 ## Dependencies
 Numpy  
 Scipy  
-Essentia  
+sudo apt-get install libsamplerate0-dev
+sudo pip install scikits.samplerate
+sudo pip install librosa
+sudo pip install python-midi
 
 ## Usage
 
