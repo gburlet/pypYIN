@@ -47,14 +47,14 @@ class MonoPitch(object):
 
     def process(self, pitchProb):
         obsProb = [self.hmm.calculatedObsProb(pitchProb[0]),]
-        for iFrame in range(1,len(pitchProb)):
+        for iFrame in xrange(1,len(pitchProb)):
             obsProb += [self.hmm.calculatedObsProb(pitchProb[iFrame])]
 
-        out = np.array([], dtype=np.float32)
-
         path, scale = self.hmm.decodeViterbi(obsProb)
+        num_frames = len(path)
+        out = np.zeros(num_frames, dtype=np.float32)
 
-        for iFrame in range(len(path)):
+        for iFrame in xrange(num_frames):
             hmmFreq = self.hmm.m_freqs[path[iFrame]]
             bestFreq = 0.0
             leastDist = 10000.0
@@ -63,7 +63,7 @@ class MonoPitch(object):
                 # ... a bit hacky, since we could have direclty saved the frequency
                 # that was assigned to the HMM bin in hmm.calculateObsProb -- but would
                 # have had to rethink the interface of that method.
-                for iPitch in range(len(pitchProb[iFrame])):
+                for iPitch in xrange(len(pitchProb[iFrame])):
                     freq = 440. * pow(2.0, (pitchProb[iFrame][iPitch][0] - 69)/12.0)
                     dist = fabs(hmmFreq-freq)
                     if dist < leastDist:
@@ -71,5 +71,6 @@ class MonoPitch(object):
                         bestFreq = freq
             else:
                 bestFreq = hmmFreq
-            out = np.append(out, bestFreq)
+            out[iFrame] = bestFreq
+
         return out

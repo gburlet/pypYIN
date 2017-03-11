@@ -54,10 +54,12 @@ class MonoNoteHMM(SparseHMM):
         # pitchProb is a list of pairs (pitches and their probabilities)
 
         nCandidate = len(pitchProb)
+        pitches = np.asarray([pp[0] for pp in pitchProb])
+        probs = np.asarray([pp[1] for pp in pitchProb])
 
         # what is the probability of pitched
         pIsPitched = 0.0
-        for iCandidate in range(nCandidate):
+        for iCandidate in xrange(nCandidate):
             # pIsPitched = pitchProb[iCandidate].second > pIsPitched ? pitchProb[iCandidate].second : pIsPitched;
             pIsPitched += pitchProb[iCandidate][1]
 
@@ -65,28 +67,16 @@ class MonoNoteHMM(SparseHMM):
         pIsPitched = pIsPitched * (1-self.par.priorWeight) + self.par.priorPitchedProb * self.par.priorWeight
 
         out = np.zeros((self.par.n,), dtype=np.float64)
-        tempProbSum = 0
-        for i in range(self.par.n):
+        for i in xrange(self.par.n):
             if i % self.par.nSPP != 2:
-                # std::cerr << getMidiPitch(i) << std::endl;
-                tempProb = 0.0
+                midiPitch = self.getMidiPitch(i)
+                out[i] = 1.0
                 if nCandidate > 0:
-                    minDist = 10000.0
-                    minDistProb = 0.0
-                    minDistCandidate = 0
-                    for iCandidate in range(nCandidate):
-                        currDist = fabs(self.getMidiPitch(i)-pitchProb[iCandidate][0])
-                        if (currDist < minDist):
-                            minDist = currDist
-                            minDistProb = pitchProb[iCandidate][1]
-                            minDistCandidate = iCandidate
-                    tempProb = pow(minDistProb, self.par.yinTrust) * self.pitchDistr[i].pdf(pitchProb[minDistCandidate][0])
-                else:
-                    tempProb = 1
-                tempProbSum += tempProb
-                out[i] = tempProb
+                    iMin = np.argmin(np.abs(midiPitch-pitches))
+                    out[i] = (probs[iMin]**self.par.yinTrust) * self.pitchDistr[i].pdf(pitches[iMin])
 
-        for i in range(self.par.n):
+        tempProbSum = np.sum(out)
+        for i in xrange(self.par.n):
             if i % self.par.nSPP != 2:
                 if tempProbSum > 0:
                     out[i] = out[i] / tempProbSum * pIsPitched
@@ -113,7 +103,7 @@ class MonoNoteHMM(SparseHMM):
         #    ...
 
         # observation distributions
-        for iState in range(self.par.n):
+        for iState in xrange(self.par.n):
             self.pitchDistr.append(norm(loc=0, scale=1))
             if iState % self.par.nSPP == 2:
                 # silent state starts tracking
@@ -121,7 +111,7 @@ class MonoNoteHMM(SparseHMM):
             else:
                 self.init = np.append(self.init, np.float64(0.0))
 
-        for iPitch in range(self.par.nS * self.par.nPPS):
+        for iPitch in xrange(self.par.nS * self.par.nPPS):
             index = iPitch * self.par.nSPP   # each pitch has 3 state
             mu = self.par.minPitch + iPitch * 1.0/self.par.nPPS
             self.pitchDistr[index] = norm(loc=mu, scale=self.par.sigmaYinPitchAttack)
@@ -131,7 +121,7 @@ class MonoNoteHMM(SparseHMM):
         # this might be the note transition probability function
         noteDistanceDistr = norm(loc=0, scale=self.par.sigma2Note)
 
-        for iPitch in range(self.par.nS * self.par.nPPS):
+        for iPitch in xrange(self.par.nS * self.par.nPPS):
             # loop through all notes and set sparse transition probabilities
             index = iPitch * self.par.nSPP
 
@@ -164,7 +154,7 @@ class MonoNoteHMM(SparseHMM):
             probSumSilent = 0.0
 
             tempTransProbSilent = []
-            for jPitch in range(self.par.nS * self.par.nPPS):
+            for jPitch in xrange(self.par.nS * self.par.nPPS):
                 fromPitch = iPitch
                 toPitch = jPitch
                 semitoneDistance = fabs(fromPitch - toPitch) * 1.0 / self.par.nPPS
@@ -182,6 +172,6 @@ class MonoNoteHMM(SparseHMM):
                     self.fromIndex = np.append(self.fromIndex, np.uint64(index+2))  # from a silence
                     self.toIndex = np.append(self.toIndex, np.uint64(toIndex))  # to an attack
 
-            for i in range(len(tempTransProbSilent)):
+            for i in xrange(len(tempTransProbSilent)):
                 self.transProb = np.append(self.transProb,
                                           np.float64(((1-self.par.pSilentSelftrans) * tempTransProbSilent[i]/probSumSilent)))

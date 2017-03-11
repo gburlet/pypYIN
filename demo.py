@@ -37,7 +37,10 @@
  * Music Notation and Representation, 2015.
 '''
 
-import os, sys
+import os
+import sys
+import time
+
 dir = os.path.dirname(os.path.realpath(__file__))
 srcpath = dir+'/src'
 sys.path.append(srcpath)
@@ -50,21 +53,21 @@ from midiio import MidiIO
 if __name__ == "__main__":
 
     # initialise
-    filename1 = '/home/gburlet/Music/queen_champions.mp3'
-    sr = 22050
+    filename1 = '/media/gburlet/Beartracks/Frettable/data/vocals/all/audio/musetta_-_Ophelia_s_Song_(Vocals).wav'
+    sr = 44100
     frameSize = 2048
     hopSize = 256
 
+    t0 = time.time()
     pYinInst = pYINmain.PyinMain()
-    pYinInst.initialise(channels = 1, inputSampleRate = sr, stepSize = hopSize, blockSize = frameSize,
-                   lowAmp = 0.25, onsetSensitivity = 0.7, pruneThresh = 0.1)
+    pYinInst.initialise(
+        channels=1, inputSampleRate=sr, stepSize=hopSize, blockSize=frameSize,
+        lowAmp=0.25, onsetSensitivity=0.7, pruneThresh=0.1
+    )
 
-    y, _ = librosa.load(filename1, sr=sr, mono=True, duration=30.0)
-    # np.ndarray [shape=(frame_length, N_FRAMES)]
+    y, _ = librosa.load(filename1, sr=sr, mono=True)
     frames = librosa.util.frame(y, frame_length=frameSize, hop_length=hopSize)
-    num_frames = np.shape(frames)[1]
-    for i in xrange(num_frames):
-        pYinInst.process(frames[:,i])
+    pYinInst.process(frames)
 
     # calculate smoothed pitch and mono note
     note_track = pYinInst.getNoteTrack()
@@ -79,6 +82,9 @@ if __name__ == "__main__":
             "offset_s": note["onset_time_s"] + note["length_s"]
         })
 
-    print notes
-    mio = MidiIO('/home/gburlet/Music/queen_champions.mid')
+    mio = MidiIO('/home/gburlet/Desktop/ophelia_pypYIN.mid')
     mio.write_midi(notes)
+    t1 = time.time()
+    total_time = t1-t0
+
+    print "Transcribed in %0.2f seconds" % total_time

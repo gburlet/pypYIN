@@ -63,33 +63,29 @@ class SparseHMM(object):
         nTrans = len(self.transProb)
 
         # declaring variables
-        scale = np.array([], dtype=np.float64)
+        scale = np.ones(nFrame, dtype=np.float64)
         delta = np.zeros((nState,), dtype=np.float64)
         oldDelta = np.zeros((nState,), dtype=np.float64)
         path = np.ones(nFrame, dtype=np.int) * (nState-1)  # the final output path
 
         deltasum = 0
-
         # initialise first frame in time 1, rabiner 32a
-        for iState in range(nState):
+        for iState in xrange(nState):
             oldDelta[iState] = self.init[iState] * obsProb[0][iState]
             deltasum += oldDelta[iState]
+        oldDelta /= deltasum
 
-        for iState in range(nState):
-            oldDelta[iState] /= deltasum  # normalise (scale)
-
-        scale = np.append(scale, np.double(1.0/deltasum))
-        psi = [np.zeros(nState, dtype=np.int),]  # matrix of remembered indices of the best transitions
+        scale[0] = np.double(1.0/deltasum)
+        psi = np.zeros([nFrame, nState], dtype=np.int)  # matrix of remembered indices of the best transitions
 
         # rest of forward step
-        for iFrame in range(1, nFrame):
+        for iFrame in xrange(1, nFrame):
             deltasum = 0
-            psi = psi + [np.zeros(nState, dtype=np.int)]
 
             # calculate best previous state for every current state
 
             # this is the "sparse" loop
-            for iTrans in range(nTrans):
+            for iTrans in xrange(nTrans):
                 fromState = self.fromIndex[iTrans]
                 toState = self.toIndex[iTrans]
                 currentTransProb = self.transProb[iTrans]
@@ -99,31 +95,30 @@ class SparseHMM(object):
                     delta[toState] = currentValue  # just change the toState delta, will be multiplied by the right obs later!
                     psi[iFrame][toState] = fromState # rabiner 33b
 
-            for jState in range(nState):
+            for jState in xrange(nState):
                 delta[jState] *= obsProb[iFrame][jState]
                 deltasum += delta[jState]
 
             if deltasum > 0:
-                for iState in range(nState):
+                for iState in xrange(nState):
                     oldDelta[iState] = delta[iState] / deltasum  # normalise (scale)
                     delta[iState] = 0
-                scale = np.append(scale, np.double(1.0/deltasum))
             else:
                 print "WARNING: Viterbi has been fed some zero probabilities, at least they become zero at frame " +  str(iFrame) + " in combination with the model."
-                for iState in range(nState):
+                for iState in xrange(nState):
                     oldDelta[iState] = 1.0/nState
                     delta[iState] = 0
-                scale = np.append(scale, np.double(1.0/deltasum))
+            scale[iFrame] = np.double(1.0/deltasum)
 
         # initialise backward step
         bestValue = 0
-        for iState in range(nState):
+        for iState in xrange(nState):
             currentValue = oldDelta[iState]  # use directly the normalised delta
             if currentValue > bestValue:
                 bestValue = currentValue #  rabiner 34b
                 path[nFrame-1] = iState #  path of last frame
 
-        for iFrame in reversed(range(nFrame-1)):
+        for iFrame in reversed(xrange(nFrame-1)):
             path[iFrame] = psi[iFrame+1][path[iFrame+1]]
 
         return path, scale

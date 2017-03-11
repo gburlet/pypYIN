@@ -7,10 +7,10 @@ def slowDifference(input, yinBufferSize):
 
     startPoint = 0
     endPoint = 0
-    for i in range(yinBufferSize):
+    for i in xrange(yinBufferSize):
         startPoint = yinBufferSize/2 - i/2
         endPoint = startPoint + yinBufferSize
-        for j in range(startPoint,endPoint):
+        for j in xrange(startPoint,endPoint):
             delta = input[i+j] - input[j]
             yinBuffer[i] += delta * delta
 
@@ -30,11 +30,11 @@ def fastDifference(input, yinBufferSize):
 
     # POWER TERM CALCULATION
     # ... for the power terms in equation (7) in the Yin paper
-    for j in range(yinBufferSize):
+    for j in xrange(yinBufferSize):
         powerTerms[0] += input[j] * input[j]
 
     # now iteratively calculate all others, second term in equation (7)
-    for tau in range(1, yinBufferSize):
+    for tau in xrange(1, yinBufferSize):
         powerTerms[tau] = powerTerms[tau-1] - input[tau-1] * input[tau-1] + input[tau+yinBufferSize] * input[tau+yinBufferSize]
 
     # YIN-STYLE AUTOCORRELATION via FFT
@@ -44,21 +44,21 @@ def fastDifference(input, yinBufferSize):
     audioTransformedImag = at.imag
 
     # 2. half of the data, disguised as a convolution kernel
-    for j in range(yinBufferSize):
+    for j in xrange(yinBufferSize):
         kernel[j] = input[yinBufferSize-1-j]
     kt = np.fft.fft(kernel, frameSize)
     kernelTransformedReal = kt.real
     kernelTransformedImag = kt.imag
 
     # 3. convolution via complex multiplication
-    for j in range(frameSize):
+    for j in xrange(frameSize):
         yinStyleACFReal[j] = audioTransformedReal[j]*kernelTransformedReal[j] - audioTransformedImag[j]*kernelTransformedImag[j]
         yinStyleACFImag[j] = audioTransformedReal[j]*kernelTransformedImag[j] + audioTransformedImag[j]*kernelTransformedReal[j]
     yinStyleACF = np.array(yinStyleACFReal, dtype=np.float64) + np.array(yinStyleACFImag, dtype=np.float64)*1j
     iat = np.fft.ifft(yinStyleACF, frameSize)
 
     # CALCULATION OF difference function
-    for j in range(yinBufferSize):
+    for j in xrange(yinBufferSize):
         yinBuffer[j] = powerTerms[0] + powerTerms[j] - 2 * iat.real[j+yinBufferSize-1]
 
     return  yinBuffer
@@ -68,7 +68,7 @@ def cumulativeDifference(yinBuffer ,yinBufferSize):
     yinBuffer[0] = 1.0
     runningSum = 0.0
 
-    for tau in range(1, yinBufferSize):
+    for tau in xrange(1, yinBufferSize):
         runningSum += yinBuffer[tau]
         if runningSum == 0:
             yinBuffer[tau] = 1
@@ -91,40 +91,39 @@ def yinProb(yinBuffer, prior, yinBufferSize, minTau0, maxTau0):
     minTau = 2
     maxTau = yinBufferSize
 
-    # adapt period range, if necessary
+    # adapt period xrange, if necessary
     if minTau0 > 0 and minTau0 < maxTau0: minTau = minTau0
     if maxTau0 > 0 and maxTau0 < yinBufferSize and maxTau0 > minTau: maxTau = maxTau0
 
     minWeight = 0.01
-    thresholds = np.array([], dtype=np.float32)
-    distribution = np.array([], dtype=np.float32)
-    peakProb = np.zeros((yinBufferSize,), dtype=np.float64)
-
     nThreshold = 100
     nThresholdInt = nThreshold
 
-    for i in range(nThresholdInt):
+    thresholds = np.zeros(nThresholdInt, dtype=np.float32)
+    distribution = np.zeros(nThresholdInt, dtype=np.float32)
+    peakProb = np.zeros((yinBufferSize,), dtype=np.float64)
 
-        thresholds = np.append(thresholds, np.double(0.01 + i*0.01))
+    for i in xrange(nThresholdInt):
+        thresholds[i] = np.double(0.01 + i*0.01)
 
         if prior == 0:
-            distribution = np.append(distribution, uniformDist[i])
+            distribution[i] = uniformDist[i]
         elif prior == 1:
-            distribution = np.append(distribution, betaDist1[i])
+            distribution[i] = betaDist1[i]
         elif prior == 2:
-            distribution = np.append(distribution, betaDist2[i])
+            distribution[i] = betaDist2[i]
         elif prior == 3:
-            distribution = np.append(distribution, betaDist3[i])
+            distribution[i] = betaDist3[i]
         elif prior == 4:
-            distribution = np.append(distribution, betaDist4[i])
+            distribution[i] = betaDist4[i]
         elif prior == 5:
-            distribution = np.append(distribution, single10[i])
+            distribution[i] = single10[i]
         elif prior == 6:
-            distribution = np.append(distribution, single15[i])
+            distribution[i] = single15[i]
         elif prior == 7:
-            distribution = np.append(distribution, single20[i])
+            distribution[i] = single20[i]
         else:
-            distribution = np.append(distribution, uniformDist[i])
+            distribution[i] = uniformDist[i]
 
     tau = minTau
     minInd = 0
@@ -160,7 +159,7 @@ def yinProb(yinBuffer, prior, yinBufferSize, minTau0, maxTau0):
 
     nonPeakProb = 1.0
     if sumProb > 0:
-        for i in range(minTau, maxTau):
+        for i in xrange(minTau, maxTau):
             # nomalization, the max prob will be peakProb[minInd]
             peakProb[i] = peakProb[i] / sumProb * peakProb[minInd]
             nonPeakProb -= peakProb[i]
@@ -197,7 +196,7 @@ def parabolicInterpolation(yinBuffer, tau, yinBufferSize):
 
 def sumSquare(input, start, end):
     out = 0.0
-    for i in range(start,end):
+    for i in xrange(start,end):
         out += input[i] * input[i]
 
     return out
@@ -205,7 +204,7 @@ def sumSquare(input, start, end):
 def RMS(inputBuffers, blockSize):
 
     rms = 0.0
-    for i in range(blockSize):
+    for i in xrange(blockSize):
         rms += inputBuffers[i] * inputBuffers[i]
     rms /= blockSize
     rms = sqrt(rms)

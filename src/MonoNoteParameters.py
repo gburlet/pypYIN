@@ -44,8 +44,8 @@ class MonoNoteParameters(object):
         self.minPitch = 35
         self.nPPS = 3  # 3 steps per semitone
         self.nS = 69
+        # nPPS * nS = num pitch bins
         self.nSPP = 3  # states per pitch
-        self.n = 0
         self.initPi = np.array([], dtype=np.float64)
         self.pAttackSelftrans = 0.9
         self.pStableSelftrans = 0.99

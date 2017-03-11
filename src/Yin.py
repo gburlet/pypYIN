@@ -85,8 +85,9 @@ class Yin(object):
         yo = Yin.YinOutput(0.0, 0.0, rms)
 
         firstStack = False
-        for iBuf in range(self.m_yinBufferSize):
-            yo.salience = np.append(yo.salience, peakProbability[iBuf])
+        yo.salience = np.zeros(self.m_yinBufferSize, dtype=np.float64)
+        for iBuf in xrange(self.m_yinBufferSize):
+            yo.salience[iBuf] = peakProbability[iBuf]
 
             # if peakProb > 0, a fundamental frequency candidate is generated
             if peakProbability[iBuf] > 0:

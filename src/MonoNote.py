@@ -56,13 +56,13 @@ class MonoNote(object):
 
     def process(self, pitchProb):
         obsProb = [self.hmm.calculatedObsProb(pitchProb[0]), ]
-        for iFrame in range(1, len(pitchProb)):
+        for iFrame in xrange(1, len(pitchProb)):
             obsProb += [self.hmm.calculatedObsProb(pitchProb[iFrame])]
         out = []
 
         path, scale = self.hmm.decodeViterbi(obsProb)
 
-        for iFrame in range(len(path)):
+        for iFrame in xrange(len(path)):
             currPitch = -1.0
             stateKind = 0
 
